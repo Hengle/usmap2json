@@ -86,7 +86,7 @@
 </div>
 <script src="lib/brotli.js"></script>
 <script type="module">
-    import parseUsmap from "./index.js";
+    import { parseUsmap, jsonifyUsmap } from "./index.js";
 
     const dropArea = document.getElementById("drop-area");
     const outputArea = document.getElementById("output-area");
@@ -159,7 +159,7 @@
             try {
                 const usmap = parseUsmap(bytes);
                 outputArea.classList.remove("error");
-                outputArea.textContent = JSON.stringify(usmap, null, 2);
+                outputArea.textContent = jsonifyUsmap(usmap);
 
                 // Show copy button and reset its state
                 copyBtn.style.display = "block";

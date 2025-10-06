@@ -85,6 +85,7 @@ enum UsmapVersion {
     PackageVersioning,
     LongFName,
     LargeEnums,
+    ExplicitEnumValues,
     LatestPlusOne,
     Latest = LatestPlusOne - 1
 }
@@ -152,9 +153,14 @@ enum PropertyTypeKind {
     AnsiStrProperty
 }
 
+type EnumMember = {
+    name: string;
+    value: number | bigint;
+}
+
 type Enum = {
     name: string;
-    members: string[];
+    members: EnumMember[];
 }
 
 type AtomicPropertyType = string;
@@ -316,9 +322,19 @@ function parseUsmapBody(version: UsmapVersion, data: Uint8Array): Usmap {
         const enumName = reader.readName(nameMap)!;
 
         const numMembers = version >= UsmapVersion.LargeEnums ? reader.readU16() : reader.readU8();
-        const members: string[] = [];
-        for (let i = 0; i < numMembers; i++) {
-            members.push(reader.readName(nameMap)!);
+        
+        const members: EnumMember[] = [];
+        if (version >= UsmapVersion.ExplicitEnumValues) {
+            for (let i = 0; i < numMembers; i++) {
+                const value = reader.readU64();
+                const name = reader.readName(nameMap)!;
+                members.push({name, value});
+            }
+        } else {
+            for (let i = 0; i < numMembers; i++) {
+                const memberName = reader.readName(nameMap)!;
+                members.push({name: memberName, value: i });
+            }
         }
 
         if (!enums.has(enumName)) {
@@ -393,4 +409,19 @@ function parseUsmap(data: Uint8Array): Usmap {
     return result;
 }
 
-export default parseUsmap;
+function jsonifyUsmap(usmap: Usmap): string {
+    const replacer = (key: any, value: any) => {
+        if (typeof value === "bigint") {
+            if (Number.MIN_SAFE_INTEGER <= value && value <= Number.MAX_SAFE_INTEGER) {
+                return Number(value);
+            } else {
+                return value.toString();
+            }
+        }
+        return value;
+    };
+
+    return JSON.stringify({ enums: usmap.enums, structs: usmap.structs }, replacer, 2);
+}
+
+export { parseUsmap, jsonifyUsmap };
